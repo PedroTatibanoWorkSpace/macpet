@@ -1,0 +1,7 @@
+/* Ajustes do Windows sobre o design system. */
+html, body, #root { height: 100%; overflow: hidden; user-select: none; }
+* { box-sizing: border-box; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: var(--quill); border-radius: 999px; border: 3px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-track { background: transparent; }
+.mp-grow { flex: 1; min-width: 0; }

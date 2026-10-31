@@ -1,0 +1,12 @@
+.panel { display: flex; height: 100%; }
+.panel-side { width: 232px; flex: none; display: flex; flex-direction: column; background: var(--plumage); border-right: 1px solid var(--quill); padding: var(--space-6) var(--space-4); gap: var(--space-3); }
+.panel-brand { display: flex; align-items: center; gap: var(--space-4); padding: 0 var(--space-3) var(--space-6); font-family: var(--font-display); font-size: 16px; font-weight: 600; }
+.panel-label { font-size: 11px; font-weight: 600; letter-spacing: .02em; color: var(--text-faint); padding: var(--space-3) var(--space-4) var(--space-2); }
+.panel-list { display: flex; flex-direction: column; gap: 2px; overflow-y: auto; flex: 1; }
+.panel-list .mp-side-item { cursor: pointer; }
+.panel-add { padding-top: var(--space-4); }
+.panel-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.panel-header { display: flex; align-items: center; gap: var(--space-6); padding: var(--space-6) var(--space-8); border-bottom: 1px solid var(--quill); }
+.panel-title { font-family: var(--font-display); font-size: 15px; line-height: 20px; font-weight: 600; }
+.panel-path { font-family: var(--font-mono); font-size: 10.5px; color: var(--text-faint); max-width: 520px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.panel-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-8); }

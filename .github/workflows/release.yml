@@ -1,0 +1,46 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build universal app
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          VERSION="$VERSION" ARCHS="arm64 x86_64" ./scripts/build-app.sh
+
+      - name: Package
+        run: |
+          cd dist
+          ditto -c -k --keepParent MacPet.app "MacPet-$VERSION.zip"
+          echo "SHA256=$(shasum -a 256 "MacPet-$VERSION.zip" | cut -d' ' -f1)" >> "$GITHUB_ENV"
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" "dist/MacPet-$VERSION.zip" --title "MacPet $VERSION" --generate-notes
+
+      # O cask mora neste mesmo repo (Casks/macpet.rb), então o tap não precisa de token extra.
+      - name: Update Homebrew cask
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git checkout main
+          git pull --ff-only origin main
+          sed -i '' -e "s/^  version \".*\"/  version \"$VERSION\"/" -e "s/^  sha256 \".*\"/  sha256 \"$SHA256\"/" Casks/macpet.rb
+          git add Casks/macpet.rb
+          git commit -m "cask: macpet $VERSION" || echo "cask já atualizado"
+          git push origin main

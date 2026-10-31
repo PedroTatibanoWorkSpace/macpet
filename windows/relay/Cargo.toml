@@ -1,0 +1,7 @@
+[package]
+name = "cawde-relay"
+version = "0.1.0"
+edition = "2021"
+description = "Mantém uma conversa do Claude Code viva fora do app: entrega input.jsonl ao claude e grava a saída em out.jsonl."
+
+[dependencies]

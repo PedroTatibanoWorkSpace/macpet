@@ -1,0 +1,67 @@
+name: Windows
+
+on:
+  push:
+    branches: [windows]
+    paths: ["windows/**", ".github/workflows/windows.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: windows
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+        with:
+          workspaces: windows
+
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: windows/app/pnpm-lock.yaml
+
+      - name: Testes do relay
+        run: cargo test -p cawde-relay
+
+      - name: Instalar dependências
+        working-directory: windows/app
+        run: pnpm install --frozen-lockfile
+
+      - name: Build do app e do instalador
+        working-directory: windows/app
+        run: pnpm tauri build
+
+      - name: Testes do núcleo
+        run: cargo test -p cawde
+
+      - name: Medir leveza (memória e CPU)
+        run: pwsh -File tools/measure.ps1
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: cawde-windows-print
+          path: windows/*.png
+          if-no-files-found: ignore
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: cawde-windows-instalador
+          path: windows/target/release/bundle/nsis/*.exe
+          if-no-files-found: error

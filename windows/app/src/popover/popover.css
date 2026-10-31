@@ -1,0 +1,11 @@
+.pop { height: 100%; display: flex; flex-direction: column; gap: var(--space-6); padding: var(--space-8); background: var(--ink); border: 1px solid var(--quill); }
+.pop-head { display: flex; align-items: center; gap: var(--space-6); }
+.pop-head h1 { font-family: var(--font-display); font-size: 20px; line-height: 26px; font-weight: 600; margin: 0; }
+.pop-head p { margin: 2px 0 0; color: var(--text-muted); font-size: 12px; line-height: 17px; }
+.pop-meters { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-6); }
+.pop-muted { margin: 0; color: var(--text-muted); font-size: 12px; line-height: 17px; }
+.pop-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5) var(--space-6); margin: 0; }
+.pop-metrics dt { font-size: 11px; font-weight: 600; letter-spacing: .02em; color: var(--text-faint); }
+.pop-metrics dd { margin: 2px 0 0; font-family: var(--font-mono); font-size: 13px; color: var(--text); }
+.pop-metrics span { font-family: var(--font-mono); font-size: 10px; color: var(--text-faint); }
+.pop-foot { display: flex; align-items: center; margin-top: auto; }
