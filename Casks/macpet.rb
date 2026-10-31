@@ -1,6 +1,6 @@
 cask "macpet" do
-  version "0.1.5"
-  sha256 "613c479f54da055ae2bc4669f4acceb515d631e800ca39c741c0d2ecc82c90f0"
+  version "0.1.6"
+  sha256 "e8e1b2f46403342c061729d383ab05d2ed553a49455a4008ebfffaf50968358e"
 
   url "https://github.com/PedroTatibanoWorkSpace/macpet/releases/download/v#{version}/MacPet-#{version}.zip"
   name "MacPet"
