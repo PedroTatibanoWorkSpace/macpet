@@ -6,7 +6,11 @@ struct TaskPlanCard: View {
     let plan: TaskPlan
     let chat: ChatSession
     @EnvironmentObject private var store: ProjectStore
+    @ObservedObject private var catalog = ModelCatalog.shared
     @State private var selected: Set<String>
+    /// Modelo e esforço de cada tarefa (pela branch): começam com o que o Claude sugeriu e você troca antes de lançar.
+    @State private var models: [String: String]
+    @State private var efforts: [String: String]
     @State private var expanded: Set<String> = []
     @State private var launching: String?
     @State private var errors: [String] = []
@@ -15,6 +19,10 @@ struct TaskPlanCard: View {
         self.plan = plan
         self.chat = chat
         _selected = State(initialValue: Set(plan.items.map(\.branch)))
+        _models = State(initialValue: Dictionary(plan.items.map { ($0.branch, $0.model ?? "default") }, uniquingKeysWith: { first, _ in first }))
+        _efforts = State(initialValue: Dictionary(plan.items.compactMap { item in
+            item.effort.flatMap { ModelCatalog.effortLevels.contains($0) ? (item.branch, $0) : nil }
+        }, uniquingKeysWith: { first, _ in first }))
     }
 
     /// Projeto que recebe as tarefas: o dono, se esta conversa já for uma tarefa ou conversa fixada.
@@ -32,6 +40,12 @@ struct TaskPlanCard: View {
                 Image(systemName: "square.split.2x2").foregroundStyle(Theme.sheen)
                 Text("Plano: \(plan.items.count) tarefa\(plan.items.count == 1 ? "" : "s") em paralelo").font(Theme.display(15))
                 Spacer()
+                if toLaunch.count > 1 {
+                    MPSelect(icon: "sparkle", title: "Modelo de todas", help: "Usa o mesmo modelo em todas as tarefas que ainda não foram lançadas",
+                             options: modelOptions(including: nil), selection: Binding(get: { "" }, set: { value in
+                                 for item in toLaunch { setModel(value, for: item) }
+                             }))
+                }
                 Text("briefings ≈ \(Format.tokens(plan.briefTokens)) tokens")
                     .font(Theme.mono(10.5)).foregroundStyle(Theme.textMuted)
                     .help("Cada agente novo começa só com o briefing dele, não com esta conversa.")
@@ -81,8 +95,12 @@ struct TaskPlanCard: View {
                 HStack(spacing: 6) {
                     Text(item.title).fontWeight(.semibold)
                     Spacer()
-                    if let model = item.model { tag(model) }
-                    if let effort = item.effort { tag(effort) }
+                    if taskId == nil {
+                        modelPicker(item)
+                    } else {
+                        tag(modelName(models[item.branch] ?? "default"))
+                        if let effort = efforts[item.branch] { tag(ModelCatalog.effortLabel(effort)) }
+                    }
                 }
                 Text(branchName(item) + (item.base.map { " ← \($0)" } ?? ""))
                     .font(Theme.mono(10.5)).foregroundStyle(Theme.textMuted)
@@ -105,6 +123,37 @@ struct TaskPlanCard: View {
         }
     }
 
+    /// Modelo e esforço da tarefa, com as mesmas opções do seletor do chat.
+    @ViewBuilder private func modelPicker(_ item: TaskPlan.Item) -> some View {
+        let model = models[item.branch] ?? "default"
+        MPSelect(icon: "sparkle", title: modelName(model), help: "Modelo do agente desta tarefa",
+                 options: modelOptions(including: model),
+                 selection: Binding(get: { model }, set: { setModel($0, for: item) }))
+        if let levels = option(model)?.efforts, !levels.isEmpty {
+            MPSelect(icon: "gauge.with.dots.needle.50percent", title: efforts[item.branch].map(ModelCatalog.effortLabel) ?? "Esforço padrão",
+                     help: "Quanto o agente pensa antes de agir",
+                     options: [.init(value: nil, label: "Esforço padrão")] + levels.map { .init(value: Optional($0), label: ModelCatalog.effortLabel($0)) },
+                     selection: Binding(get: { efforts[item.branch] }, set: { efforts[item.branch] = $0 }))
+        }
+    }
+
+    private func option(_ value: String) -> ModelOption? { catalog.models.first { $0.value == value } }
+    private func modelName(_ value: String) -> String { option(value)?.name ?? value }
+
+    /// Os apelidos do catálogo ("opus", "sonnet"…), mais o que o Claude sugeriu se não estiver nele.
+    private func modelOptions(including current: String?) -> [MPSelect<String>.Option] {
+        var options = catalog.models.filter { !$0.value.hasPrefix("claude-") }
+            .map { MPSelect<String>.Option(value: $0.value, label: $0.name, detail: $0.detail.isEmpty ? nil : $0.detail) }
+        if let current, !options.contains(where: { $0.value == current }) { options.append(.init(value: current, label: current)) }
+        return options
+    }
+
+    /// Troca o modelo e descarta o esforço se o modelo novo não oferece esse nível.
+    private func setModel(_ value: String, for item: TaskPlan.Item) {
+        models[item.branch] = value
+        if let effort = efforts[item.branch], let levels = option(value)?.efforts, !levels.contains(effort) { efforts[item.branch] = nil }
+    }
+
     private func tag(_ text: String) -> some View {
         Text(text).font(Theme.mono(10)).foregroundStyle(Theme.textMuted)
             .padding(.horizontal, 6).padding(.vertical, 2)
@@ -119,6 +168,7 @@ struct TaskPlanCard: View {
     private func launch() {
         guard let ownerId = owner?.id else { return }
         let items = toLaunch
+        let chosenModels = models, chosenEfforts = efforts
         let origin = chat.project.name
         errors = []
         Task {
@@ -130,8 +180,8 @@ struct TaskPlanCard: View {
                     let (workspace, _) = try await store.createTask(in: current, name: item.title,
                                                                     branch: branchName(item), base: item.base ?? base)
                     let taskChat = store.chat(for: workspace)
-                    if let model = item.model { taskChat.setModel(model) }
-                    if let effort = item.effort, ModelCatalog.effortLevels.contains(effort) { taskChat.setEffort(effort) }
+                    taskChat.setModel(chosenModels[item.branch] ?? "default")
+                    taskChat.setEffort(chosenEfforts[item.branch])
                     taskChat.notice("Lançada a partir da conversa em \(origin).")
                     let footer = store.task(id: workspace.id).map { TaskPlan.footer(task: $0.task, origin: origin, project: current.name) } ?? ""
                     taskChat.send(item.brief + footer)
